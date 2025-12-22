@@ -1,0 +1,38 @@
+*{
+    margin:0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+
+
+
+.nabar{
+    position: fixed;
+    justify-content: space-between;
+    display: flex;
+    align-items: center;
+    background: linear-gradient(
+        90deg,
+        rgb(8,32,84),
+        rgb(18,60,130),
+        rgb(32,90,170)
+    );
+    padding: 15px 40px;
+    width: 100%;
+    color:rgb(230,235,245)
+}
+.list{
+    display: flex;
+    list-style-type: disc;
+    list-style: none;
+
+}
+.list li{
+    margin-right: 50px;
+    margin-left: 50px;
+    color: rgb(230,235,245);
+}
+.list a:hover{
+    color:rgb(0,210,190);
+}
