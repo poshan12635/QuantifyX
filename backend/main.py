@@ -12,7 +12,7 @@ import math
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
 from schema import BacktestRequest
-from Backtest import macrossover,MeanReversion
+from Backtest import macrossover,MeanReversion,BollingerRsi
 
 
 
@@ -23,8 +23,8 @@ from Backtest import macrossover,MeanReversion
 app=FastAPI()
 
 origins = [
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 app.add_middleware(
@@ -51,7 +51,7 @@ def root():
 
 @app.get('/hydroname')
 def get_hydro_name(db:Session=Depends(get_db)):
-    query=text('SELECT "symbol" FROM hydropower  GROUP BY "symbol"')
+    query=text('SELECT "Symbol" FROM stock_data  GROUP BY "Symbol"')
     result=db.execute(query).fetchall()
     if not result:
         return {"status":"fail","message":"no data found"}
@@ -63,12 +63,12 @@ def get_hydro_name(db:Session=Depends(get_db)):
 @app.post("/gethydro")
 def get_hydro_data(sym:str,db:Session=Depends(get_db)):
     symbol=sym.upper()
-    query=text('SELECT * FROM hydropower WHERE "symbol" = :symbol ORDER BY "date"')
+    query=text('SELECT "Symbol","Open","High","Low","Close","Vol","Date" FROM stock_data WHERE "symbol" = :symbol ORDER BY "date"')
     result=db.execute(query,{"symbol":symbol}).fetchall()
     if  not result:
        return {"status": "fail", "message": "No data found"}
    
-    df=pd.DataFrame(result,columns=['Symbol','Date','Open','High','low','Close','Volume','Return'])
+    df=pd.DataFrame(result,columns=['Symbol','Open','High','low','Close','Volume',"Date"])
     return df.to_dict(orient="records")
    
 
@@ -92,10 +92,10 @@ def test_bollinger(data: BacktestRequest, db: Session = Depends(get_db)):
     
 
     query = text(
-        'SELECT "date", "open", "high", "low", "close", "volume" '
-        'FROM hydropower WHERE "symbol" = :symbol ORDER BY "date"'
+        'SELECT "Date", "Open", "High", "Low", "Close", "Vol" '
+        'FROM stock_data WHERE "Symbol" = :symbol and "Date">=:date ORDER BY "Date"'
     )
-    result = db.execute(query, {"symbol": symbol1}).fetchall()
+    result = db.execute(query, {"symbol": symbol1,"date":data.startdate}).fetchall()
     
     if not result:
         return {"status": "fail", "message": "No data found for symbol"}
@@ -112,14 +112,15 @@ def test_bollinger(data: BacktestRequest, db: Session = Depends(get_db)):
     strategies = {
         "Bollinger Band": bollinger_band,
         "Moving Average Crossover": macrossover,
-        "Mean Reversion": MeanReversion
+        "Mean Reversion": MeanReversion,
+        "Bollinger+Rsi":BollingerRsi
     }
     
     strategy_select = strategies.get(data.stra)
     if not strategy_select:
         return {"status": "fail", "message": "Invalid strategy selected"}
 
-    bt = Backtest(df, strategy_select, cash=data.investement, commission=0)
+    bt = Backtest(df, strategy_select, cash=data.investement, commission=0,finalize_trades=True)
     stats = bt.run()
     trades_list = []
     if '_trades' in stats and not stats['_trades'].empty:
@@ -166,7 +167,7 @@ def test_bollinger(data: BacktestRequest, db: Session = Depends(get_db)):
             "middle": stats['_strategy'].middle.tolist(),
             "lower": stats['_strategy'].lower.tolist()
         }
-    elif data.stra == "Ma crossover":
+    elif data.stra == "Moving Average Crossover":
         raw_response["indicators"] = {
             "fast_ma": stats['_strategy'].fast.tolist(),
             "slow_ma": stats['_strategy'].slow.tolist()
@@ -175,5 +176,27 @@ def test_bollinger(data: BacktestRequest, db: Session = Depends(get_db)):
         raw_response["indicators"] = {
             "zscore": stats['_strategy'].zscore.tolist()
         }
+    elif data.stra == "Bollinger+Rsi":
+        raw_response["indicators"] = {
+            "upper": stats['_strategy'].bband_upper.tolist(),
+            "middle": stats['_strategy'].bband_middle.tolist(),
+            "lower": stats['_strategy'].lower.tolist()
+        }
 
     return jsonable_encoder(deep_sanitize(raw_response))
+
+
+@app.post('/chat')
+def chat(data:  Symbol,cash2:float,db:Session=Depends(get_db)):
+    query=text('SELECT "Open","High","Low","Close","Vol","Date" FROM stock_data where "symbol":symbol ORDER BY "date"')
+    result=db.execute(query,{"symbol":data.sym})
+    
+    if not result:
+        return {"status": "fail", "message": "No data found for symbol"}
+
+    df = pd.DataFrame(result, columns=[ 'Open', 'High', 'Low', 'Close', 'Volume',"Date"])
+    initial_input={
+        "ticker":data.syk,
+        "raw_data":df.to_dict(orient='records'),
+        "cash":cash2
+    }

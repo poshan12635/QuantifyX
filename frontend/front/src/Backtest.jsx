@@ -10,6 +10,8 @@ function Backtest() {
   const [strategy, setStrategy] = useState("");
   const [investment, setInve] = useState("");
   const [loading, setLoading] = useState(false);
+  const [startDate, setStartDate] = useState("");
+
 
   useEffect(() => {
     fetch("http://localhost:8000/hydroname").then(res => res.json()).then(data => setList(data));
@@ -20,7 +22,7 @@ function Backtest() {
     const res = await fetch("http://localhost:8000/bbband", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ investement: parseFloat(investment), sym, stra: strategy }),
+      body: JSON.stringify({ investement: parseFloat(investment), sym, stra: strategy ,startdate:startDate}),
     });
     const data = await res.json();
     setMessage(data);
@@ -48,6 +50,15 @@ function Backtest() {
             <option value="Bollinger+Rsi">Bollinger+Rsi</option>
           </select>
         </div>
+        <div className="control-group">
+  <label>Start Date</label>
+  <input
+    type="date"
+    value={startDate}
+    onChange={(e) => setStartDate(e.target.value)}
+  />
+</div>
+
         <div className="control-group">
           <label>Capital</label>
           <input type="number" value={investment} onChange={(e) => setInve(e.target.value)} placeholder="10000" />

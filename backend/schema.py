@@ -20,3 +20,4 @@ class BacktestRequest(BaseModel):
     investement: float
     sym: str
     stra: str
+    startdate:datetime

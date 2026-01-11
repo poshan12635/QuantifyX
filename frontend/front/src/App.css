@@ -11,7 +11,7 @@ html, body {
   padding: 0;
   background-color: var(--bg-dark);
   color: white;
-  overflow: hidden; /* We handle scrolling inside the components */
+  overflow: visible; /* We handle scrolling inside the components */
   height: 100vh;
   width: 100vw;
 }
